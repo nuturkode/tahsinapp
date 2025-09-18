@@ -2,28 +2,510 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <title>SEKOLAH LAB JAKARTA</title>
+    <title>SEKOLAH LAB JAKARTA - Pendaftaran</title>
+    
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+        line-height: 1.6; 
+        color: #333; 
+        background-color: #f9fafb; 
+      }
+      
+      .container { max-width: 42rem; margin: 0 auto; padding: 0 1rem; }
+      
+      /* Header */
+      .header {
+        background-color: #2563eb;
+        color: white;
+        padding: 1.5rem 0;
+        margin-bottom: 2rem;
+        text-align: center;
+      }
+      
+      .header h1 {
+        font-size: 1.875rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+      }
+      
+      .header p {
+        color: #dbeafe;
+      }
+      
+      /* Form container */
+      .form-container {
+        background-color: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+      }
+      
+      /* Form elements */
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+      
+      .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+      }
+      
+      .required {
+        color: #ef4444;
+      }
+      
+      .form-input, .form-textarea, .form-select {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      
+      .form-input:focus, .form-textarea:focus, .form-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+      
+      .form-input:read-only, .form-textarea:read-only {
+        background-color: #f3f4f6;
+        color: #6b7280;
+      }
+      
+      .form-textarea {
+        resize: vertical;
+        min-height: 4rem;
+      }
+      
+      /* Button */
+      .btn-primary {
+        width: 100%;
+        background-color: #2563eb;
+        color: white;
+        padding: 0.75rem 1rem;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: 2rem;
+      }
+      
+      .btn-primary:hover:not(:disabled) {
+        background-color: #1d4ed8;
+      }
+      
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      /* Alerts */
+      .alert {
+        padding: 0.75rem 1rem;
+        border-radius: 0.375rem;
+        border: 1px solid;
+        margin-bottom: 1rem;
+      }
+      
+      .alert-success {
+        background-color: #f0fdf4;
+        border-color: #4ade80;
+        color: #15803d;
+      }
+      
+      .alert-error {
+        background-color: #fef2f2;
+        border-color: #f87171;
+        color: #b91c1c;
+      }
+      
+      .error-message {
+        color: #ef4444;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+      }
+      
+      /* Loading */
+      .loading {
+        text-align: center;
+        padding: 2rem;
+      }
+      
+      .spinner {
+        border: 2px solid #f3f4f6;
+        border-top: 2px solid #2563eb;
+        border-radius: 50%;
+        width: 2rem;
+        height: 2rem;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Footer */
+      .footer {
+        text-align: center;
+        padding: 1.5rem 0;
+        color: #6b7280;
+      }
+      
+      /* Hidden by default */
+      .hidden {
+        display: none;
+      }
+    </style>
   </head>
   <body>
-         <div id="content">
-          <iframe src="https://script.google.com/macros/s/AKfycbwK6oHu5x5ZvRk7SdeepK-XwBS75DuijwrzxSsWOP5PFUb3YxXaVbYy0OT_g_o2rXvA0Q/exec"
-            style="position:fixed; top:0; left:0; bottom:0; right:0; width:100%; height:100%; border:none; margin:0; padding:0; overflow:hidden; z-index:999999;"
-                 
-          >
-        </div>
+    <!-- Header -->
+    <header class="header">
+      <div class="container">
+        <h1>SEKOLAH LAB JAKARTA</h1>
+        <p>Formulir Pendaftaran</p>
+      </div>
+    </header>
 
-    
-</iframe>
+    <!-- Main Content -->
+    <main class="container">
+      <!-- Loading State -->
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Memuat formulir...</p>
+      </div>
 
+      <!-- Success Message -->
+      <div id="successAlert" class="alert alert-success hidden">
+        <strong>Berhasil!</strong>
+        <span>Pendaftaran berhasil! Terima kasih telah mendaftar.</span>
+      </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+      <!-- Error Message -->
+      <div id="errorAlert" class="alert alert-error hidden">
+        <strong>Error!</strong>
+        <span id="errorMessage">Terjadi kesalahan. Silakan coba lagi.</span>
+      </div>
 
+      <!-- Registration Form -->
+      <div id="formContainer" class="form-container hidden">
+        <form id="registrationForm">
+          <!-- ID Field -->
+          <div class="form-group">
+            <label for="id" class="form-label">ID</label>
+            <input type="text" id="id" name="id" class="form-input" value="Auto-generated" readonly>
+          </div>
 
+          <!-- Registration Date Field -->
+          <div class="form-group">
+            <label for="tgl_daftar" class="form-label">Tanggal Daftar</label>
+            <input type="text" id="tgl_daftar" name="tgl_daftar" class="form-input" readonly>
+          </div>
+
+          <!-- Full Name Field -->
+          <div class="form-group">
+            <label for="nama_lengkap" class="form-label">
+              Nama Lengkap <span class="required">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="nama_lengkap" 
+              name="nama_lengkap" 
+              class="form-input" 
+              placeholder="Masukkan nama lengkap Anda"
+              required
+            >
+            <div id="error-nama_lengkap" class="error-message hidden"></div>
+          </div>
+
+          <!-- Email Field -->
+          <div class="form-group">
+            <label for="email" class="form-label">
+              Email <span class="required">*</span>
+            </label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              class="form-input" 
+              placeholder="contoh@email.com"
+              required
+            >
+            <div id="error-email" class="error-message hidden"></div>
+          </div>
+
+          <!-- Phone Number Field -->
+          <div class="form-group">
+            <label for="nomor_telepon" class="form-label">
+              Nomor Telepon <span class="required">*</span>
+            </label>
+            <input 
+              type="tel" 
+              id="nomor_telepon" 
+              name="nomor_telepon" 
+              class="form-input" 
+              placeholder="08123456789"
+              required
+            >
+            <div id="error-nomor_telepon" class="error-message hidden"></div>
+          </div>
+
+          <!-- Address Field -->
+          <div class="form-group">
+            <label for="alamat" class="form-label">Alamat</label>
+            <textarea 
+              id="alamat" 
+              name="alamat" 
+              class="form-textarea" 
+              placeholder="Masukkan alamat lengkap Anda"
+              rows="3"
+            ></textarea>
+          </div>
+
+          <!-- Birth Date Field -->
+          <div class="form-group">
+            <label for="tanggal_lahir" class="form-label">Tanggal Lahir</label>
+            <input type="date" id="tanggal_lahir" name="tanggal_lahir" class="form-input">
+          </div>
+
+          <!-- Gender Field -->
+          <div class="form-group">
+            <label for="jenis_kelamin" class="form-label">Jenis Kelamin</label>
+            <select id="jenis_kelamin" name="jenis_kelamin" class="form-select">
+              <option value="">Pilih Jenis Kelamin</option>
+              <option value="Laki-laki">Laki-laki</option>
+              <option value="Perempuan">Perempuan</option>
+            </select>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="submitBtn" class="btn-primary">
+            Daftar Sekarang
+          </button>
+        </form>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2024 Sekolah Lab Jakarta. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      // Application state
+      let isSubmitting = false;
+
+      // Initialize the application
+      document.addEventListener('DOMContentLoaded', function() {
+        initializeForm();
+      });
+
+      function initializeForm() {
+        // Set current date
+        const now = new Date();
+        document.getElementById('tgl_daftar').value = now.toLocaleDateString('id-ID', {
+          day: '2-digit',
+          month: '2-digit', 
+          year: 'numeric'
+        });
+
+        // Simulate loading
+        setTimeout(() => {
+          hideElement('loading');
+          showElement('formContainer');
+        }, 1000);
+
+        // Add form submission handler
+        document.getElementById('registrationForm').addEventListener('submit', handleFormSubmit);
+      }
+
+      function handleFormSubmit(event) {
+        event.preventDefault();
+        
+        if (isSubmitting) return;
+
+        // Clear previous messages
+        hideElement('successAlert');
+        hideElement('errorAlert');
+        clearFieldErrors();
+
+        // Validate form
+        if (!validateForm()) {
+          return;
+        }
+
+        // Start submission
+        isSubmitting = true;
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Mengirim...';
+
+        // Collect form data
+        const formData = new FormData(event.target);
+        const data = {};
+        for (let [key, value] of formData.entries()) {
+          data[key] = value;
+        }
+
+        // Simulate API call
+        simulateSubmission(data);
+      }
+
+      function validateForm() {
+        let isValid = true;
+
+        // Required fields validation
+        const requiredFields = [
+          { id: 'nama_lengkap', name: 'Nama Lengkap' },
+          { id: 'email', name: 'Email' },
+          { id: 'nomor_telepon', name: 'Nomor Telepon' }
+        ];
+
+        requiredFields.forEach(field => {
+          const input = document.getElementById(field.id);
+          const value = input.value.trim();
+          
+          if (!value) {
+            showFieldError(field.id, `${field.name} wajib diisi`);
+            isValid = false;
+          }
+        });
+
+        // Email validation
+        const emailInput = document.getElementById('email');
+        const emailValue = emailInput.value.trim();
+        if (emailValue) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(emailValue)) {
+            showFieldError('email', 'Format email tidak valid');
+            isValid = false;
+          }
+        }
+
+        // Phone validation
+        const phoneInput = document.getElementById('nomor_telepon');
+        const phoneValue = phoneInput.value.trim();
+        if (phoneValue) {
+          const phoneRegex = /^[\d\-\+\(\)\s]+$/;
+          if (!phoneRegex.test(phoneValue)) {
+            showFieldError('nomor_telepon', 'Format nomor telepon tidak valid');
+            isValid = false;
+          }
+        }
+
+        return isValid;
+      }
+
+      function simulateSubmission(data) {
+        // Simulate API call delay
+        setTimeout(() => {
+          console.log('Form submitted with data:', data);
+          
+          // Show success message
+          showElement('successAlert');
+          
+          // Reset form
+          document.getElementById('registrationForm').reset();
+          
+          // Reset readonly fields
+          document.getElementById('id').value = 'Auto-generated';
+          const now = new Date();
+          document.getElementById('tgl_daftar').value = now.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit', 
+            year: 'numeric'
+          });
+
+          // Reset button
+          isSubmitting = false;
+          const submitBtn = document.getElementById('submitBtn');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Daftar Sekarang';
+
+          // Scroll to top to show success message
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 2000);
+      }
+
+      function showFieldError(fieldId, message) {
+        const errorElement = document.getElementById(`error-${fieldId}`);
+        if (errorElement) {
+          errorElement.textContent = message;
+          errorElement.classList.remove('hidden');
+        }
+      }
+
+      function clearFieldErrors() {
+        const errorElements = document.querySelectorAll('.error-message');
+        errorElements.forEach(element => {
+          element.classList.add('hidden');
+          element.textContent = '';
+        });
+      }
+
+      function showElement(id) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.classList.remove('hidden');
+        }
+      }
+
+      function hideElement(id) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.classList.add('hidden');
+        }
+      }
+
+      // For production use with Google Apps Script:
+      // Replace simulateSubmission with actual API call
+      function submitToGoogleScript(data) {
+        const scriptUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+        
+        return fetch(scriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            showElement('successAlert');
+            document.getElementById('registrationForm').reset();
+            // Reset readonly fields as above
+          } else {
+            document.getElementById('errorMessage').textContent = result.message || 'Terjadi kesalahan';
+            showElement('errorAlert');
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          document.getElementById('errorMessage').textContent = 'Gagal mengirim formulir. Silakan coba lagi.';
+          showElement('errorAlert');
+        })
+        .finally(() => {
+          isSubmitting = false;
+          const submitBtn = document.getElementById('submitBtn');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Daftar Sekarang';
+        });
+      }
+    </script>
   </body>
 </html>
