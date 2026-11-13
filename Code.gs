@@ -27,11 +27,15 @@ function include(filename) {
 
 /** Jalankan sekali dari editor: membuat spreadsheet database + sheet + data awal. */
 function setup() {
-  var ss = db_();
+  var ss = db_(); // db_() menyimpan ID di User Properties akun yang menjalankan
   ensureSheets_();
-  var props = PropertiesService.getScriptProperties();
-  if (!props.getProperty('SPREADSHEET_ID')) props.setProperty('SPREADSHEET_ID', ss.getId());
-  return 'Database siap: ' + ss.getUrl();
+  var email = '';
+  try {
+    email = String(Session.getActiveUser().getEmail() || '');
+  } catch (err) {
+    email = '';
+  }
+  return 'Database siap' + (email ? ' untuk ' + email : '') + ': ' + ss.getUrl();
 }
 
 /** Jalankan sekali untuk pengingat harian (Google Calendar) + laporan mingguan. */

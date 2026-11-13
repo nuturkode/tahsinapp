@@ -595,7 +595,7 @@ npm run gas:status         # daftar file yang akan dikirim, tanpa mengirim
 
 **4. Siapkan database (sekali, dari editor Apps Script)**
 
-Pilih fungsi `setup` → **Run** → izinkan scope yang diminta. Jalankan sebagai **pemilik akun** sebelum URL dibagikan, agar spreadsheet database berada di Drive Anda (dengan `executeAs: USER_ACCESSING`, pengunjung pertama yang menjalankan `db_()` akan membuat database di Drive-nya sendiri). Fungsi ini membuat spreadsheet **“IbadahKu Database”** berisi seluruh sheet (`Users`, `Profiles`, `PrayerLog`, … `Targets`, `TargetMissions`) dan menyimpan `SPREADSHEET_ID` di Script Properties. Opsional: `setupTriggers` untuk pengingat Google Calendar + laporan email, `removeTriggers` untuk mencabutnya.
+Pilih fungsi `setup` → **Run** → izinkan scope yang diminta. Jalankan sebagai **pemilik akun** sebelum URL dibagikan, agar spreadsheet database berada di Drive Anda (dengan `executeAs: USER_ACCESSING`, pengunjung pertama yang menjalankan `db_()` akan membuat database di Drive-nya sendiri). Fungsi ini membuat spreadsheet **“IbadahKu Database”** berisi seluruh sheet (`Users`, `Profiles`, `PrayerLog`, … `Targets`, `TargetMissions`) dan menyimpan `SPREADSHEET_ID` di **User Properties**, yaitu satu nilai per akun, sehingga setiap pengguna punya spreadsheet sendiri di Drive-nya dan dua akun tidak saling menimpa ID. Bila ID lama masih tersimpan di Script Properties (versi sebelum perbaikan ini), ID itu dimigrasikan otomatis ke akun yang memang punya akses lalu dihapus dari Script Properties; akun lain membuat spreadsheet sendiri. Opsional: `setupTriggers` untuk pengingat Google Calendar + laporan email, `removeTriggers` untuk mencabutnya.
 
 **5. Deploy web app**
 

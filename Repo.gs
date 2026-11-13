@@ -83,19 +83,66 @@ var SCHEMA = {
   AuditLog: ['ts', 'user_id', 'action', 'ms', 'ok', 'err']
 };
 
+/**
+ * Spreadsheet database milik akun yang sedang mengakses.
+ *
+ * Web app berjalan dengan `executeAs: USER_ACCESSING`, jadi seluruh kode
+ * dieksekusi sebagai pengguna. Karena itu ID spreadsheet disimpan di
+ * **User Properties** (satu nilai per akun). Versi sebelumnya memakai Script
+ * Properties yang dipakai bersama semua akun: akun kedua gagal openById,
+ * membuat spreadsheet baru, lalu menimpa ID bersama itu sehingga akun pertama
+ * kehilangan datanya pada permintaan berikutnya.
+ */
 function db_() {
-  var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty('SPREADSHEET_ID');
+  var ss = openSpreadsheet_();
+  if (ss) return ss;
+
+  // Pembuatan database hanya terjadi sekali per akun. Kunci sebentar agar dua
+  // permintaan pertama yang bersamaan tidak membuat dua spreadsheet.
+  var lock = LockService.getScriptLock();
+  var locked = false;
+  try {
+    locked = lock.tryLock(15000);
+  } catch (err) {
+    locked = false;
+  }
+  try {
+    ss = openSpreadsheet_();
+    if (ss) return ss;
+    var created = SpreadsheetApp.create('IbadahKu Database');
+    PropertiesService.getUserProperties().setProperty('SPREADSHEET_ID', created.getId());
+    return created;
+  } finally {
+    if (locked) lock.releaseLock();
+  }
+}
+
+/** Spreadsheet tersimpan untuk akun ini; null bila belum ada atau tak bisa dibuka. */
+function openSpreadsheet_() {
+  var userProps = PropertiesService.getUserProperties();
+  var id = userProps.getProperty('SPREADSHEET_ID');
   if (id) {
     try {
       return SpreadsheetApp.openById(id);
     } catch (err) {
-      props.deleteProperty('SPREADSHEET_ID');
+      userProps.deleteProperty('SPREADSHEET_ID');
     }
   }
-  var ss = SpreadsheetApp.create('IbadahKu Database');
-  props.setProperty('SPREADSHEET_ID', ss.getId());
-  return ss;
+
+  // Migrasi sekali jalan dari versi lama (ID disimpan di Script Properties
+  // bersama). Hanya akun yang benar-benar punya akses yang mengadopsinya;
+  // akun lain dibiarkan membuat spreadsheet sendiri.
+  var scriptProps = PropertiesService.getScriptProperties();
+  var legacyId = scriptProps.getProperty('SPREADSHEET_ID');
+  if (!legacyId) return null;
+  try {
+    var legacy = SpreadsheetApp.openById(legacyId);
+    userProps.setProperty('SPREADSHEET_ID', legacyId);
+    scriptProps.deleteProperty('SPREADSHEET_ID');
+    return legacy;
+  } catch (err) {
+    return null;
+  }
 }
 
 function sheet_(name) {
