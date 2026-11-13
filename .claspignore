@@ -1,0 +1,14 @@
+# hanya berkas yang dibutuhkan Apps Script yang di-push
+**/**
+!appsscript.json
+!*.gs
+!AppShell.html
+!ui/*.html
+!ui/components/*.html
+node_modules/**
+dist/**
+src/**
+tools/**
+tests/**
+*.md
+package*.json

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.clasp.json
+.vercel/
+.DS_Store
+*.log
+
+# hasil generate untuk Apps Script (dibuat ulang oleh `npm run build:gas`)
+ui/Styles.html
+ui/App.html
+AppShell.html

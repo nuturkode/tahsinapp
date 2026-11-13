@@ -1,0 +1,33 @@
+{
+  "name": "ibadahku",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "IbadahKu — aplikasi ibadah harian muslim (Google Apps Script + Vue 3)",
+  "scripts": {
+    "build:css": "tailwindcss -i src/styles/input.css -o dist/styles.css --minify",
+    "build:js": "esbuild src/js/main.js --bundle --format=iife --outfile=dist/app.js --minify --target=es2020",
+    "build:html": "node tools/copy-index.mjs",
+    "build": "npm run build:css && npm run build:js && npm run build:html",
+    "build:gas": "node tools/build-gas.mjs",
+    "release": "npm run build && npm run build:gas",
+    "check": "node tools/check-templates.mjs",
+    "smoke": "node tools/smoke.mjs",
+    "dev": "npm run build && node tools/serve.mjs",
+    "gas:init": "node tools/gas-init.mjs",
+    "gas:login": "clasp login",
+    "gas:create": "clasp create --type webapp --title IbadahKu --rootDir .",
+    "gas:push": "npm run release && clasp push -f",
+    "gas:status": "clasp status",
+    "gas:open": "clasp open",
+    "gas:deploy": "clasp deploy -d IbadahKu"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.4.1",
+    "@tailwindcss/cli": "^4.3.4",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
+    "tailwindcss": "^4.3.4",
+    "vue": "^3.5.44"
+  }
+}
