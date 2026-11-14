@@ -9,7 +9,7 @@ function api(action, payloadJson) {
   var user = null;
 
   try {
-    ensureSheets_();
+    ensureSchema_();
     user = currentUser_();
 
     var payload = {};
@@ -27,7 +27,9 @@ function api(action, payloadJson) {
 
     var data = handler(payload, user) || {};
     var ms = Date.now() - started;
-    audit_(user, name, ms, true, '');
+    // Menulis baris audit di setiap request menambah satu tulis sheet yang
+    // lambat; cukup catat yang lambat atau gagal.
+    if (ms >= AUDIT_SLOW_MS_) audit_(user, name, ms, true, '');
     return envelope_(data, ms);
   } catch (err) {
     var msFail = Date.now() - started;

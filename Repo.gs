@@ -84,6 +84,25 @@ var SCHEMA = {
 };
 
 /**
+ * Versi skema. Naikkan angka ini setiap menambah kolom di SCHEMA supaya
+ * kolom baru dipasang sekali, bukan dicek ulang di setiap permintaan.
+ */
+var SCHEMA_VERSION = '2026-11-14-1';
+
+/**
+ * Cache per eksekusi (satu eksekusi = satu permintaan API). Setiap panggilan
+ * SpreadsheetApp adalah RPC jaringan, jadi objek spreadsheet, sheet, dan isi
+ * tabel disimpan sekali saja selama satu permintaan.
+ */
+var DB_CACHE_ = null;
+var SHEET_CACHE_ = {};
+var TABLE_CACHE_ = {};
+var SCHEMA_VERIFIED_ = false;
+
+/** Audit hanya ditulis untuk permintaan gagal atau yang lambat. */
+var AUDIT_SLOW_MS_ = 2500;
+
+/**
  * Spreadsheet database milik akun yang sedang mengakses.
  *
  * Web app berjalan dengan `executeAs: USER_ACCESSING`, jadi seluruh kode
@@ -94,8 +113,13 @@ var SCHEMA = {
  * kehilangan datanya pada permintaan berikutnya.
  */
 function db_() {
+  if (DB_CACHE_) return DB_CACHE_;
+
   var ss = openSpreadsheet_();
-  if (ss) return ss;
+  if (ss) {
+    DB_CACHE_ = ss;
+    return ss;
+  }
 
   // Pembuatan database hanya terjadi sekali per akun. Kunci sebentar agar dua
   // permintaan pertama yang bersamaan tidak membuat dua spreadsheet.
@@ -108,9 +132,13 @@ function db_() {
   }
   try {
     ss = openSpreadsheet_();
-    if (ss) return ss;
+    if (ss) {
+      DB_CACHE_ = ss;
+      return ss;
+    }
     var created = SpreadsheetApp.create('IbadahKu Database');
     PropertiesService.getUserProperties().setProperty('SPREADSHEET_ID', created.getId());
+    DB_CACHE_ = created;
     return created;
   } finally {
     if (locked) lock.releaseLock();
@@ -147,6 +175,8 @@ function openSpreadsheet_() {
 
 function sheet_(name) {
   if (!SCHEMA[name]) throw new Error('Sheet tidak dikenal: ' + name);
+  if (SHEET_CACHE_[name]) return SHEET_CACHE_[name];
+
   var ss = db_();
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
@@ -154,10 +184,29 @@ function sheet_(name) {
     sheet.getRange(1, 1, 1, SCHEMA[name].length).setValues([SCHEMA[name]]);
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, SCHEMA[name].length).setFontWeight('bold');
-  } else {
+  } else if (!SCHEMA_VERIFIED_) {
     ensureColumns_(sheet, name);
   }
+  SHEET_CACHE_[name] = sheet;
   return sheet;
+}
+
+/**
+ * Cek skema murah: hanya membaca User Properties. Pemeriksaan penuh (17 sheet
+ * + header) dijalankan sekali saat database baru atau setelah SCHEMA_VERSION
+ * berubah, bukan di setiap permintaan.
+ */
+function ensureSchema_() {
+  var props = PropertiesService.getUserProperties();
+  if (props.getProperty('SPREADSHEET_ID') && props.getProperty('SCHEMA_VERSION') === SCHEMA_VERSION) {
+    SCHEMA_VERIFIED_ = true;
+    return;
+  }
+
+  db_();
+  ensureSheets_();
+  props.setProperty('SCHEMA_VERSION', SCHEMA_VERSION);
+  SCHEMA_VERIFIED_ = true;
 }
 
 /** Menambahkan kolom baru di akhir header tanpa menggeser data lama (migrasi ringan). */
@@ -181,13 +230,19 @@ function ensureSheets_() {
   var ss = db_();
   var first = ss.getSheetByName('Sheet1');
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
+  TABLE_CACHE_ = {};
 }
 
 function readTable_(name) {
+  if (TABLE_CACHE_[name]) return TABLE_CACHE_[name];
+
   var sheet = sheet_(name);
   var last = sheet.getLastRow();
   var headers = SCHEMA[name];
-  if (last < 2) return [];
+  if (last < 2) {
+    TABLE_CACHE_[name] = [];
+    return [];
+  }
   var values = sheet.getRange(2, 1, last - 1, headers.length).getValues();
   var rows = [];
   for (var i = 0; i < values.length; i++) {
@@ -200,6 +255,7 @@ function readTable_(name) {
     }
     if (!empty) rows.push(row);
   }
+  TABLE_CACHE_[name] = rows;
   return rows;
 }
 
@@ -210,6 +266,14 @@ function appendRow_(name, obj) {
     return obj[key] === undefined || obj[key] === null ? '' : obj[key];
   });
   sheet.appendRow(row);
+  delete TABLE_CACHE_[name];
+}
+
+/** Perbandingan nilai sel: Date, boolean (TRUE/FALSE), dan angka disamakan. */
+function sameCellValue_(current, next) {
+  var left = current instanceof Date ? current.toISOString() : current;
+  var right = next instanceof Date ? next.toISOString() : next;
+  return String(left === null || left === undefined ? '' : left) === String(right === null || right === undefined ? '' : right);
 }
 
 function updateRow_(name, idField, idValue, patch) {
@@ -221,17 +285,35 @@ function updateRow_(name, idField, idValue, patch) {
   if (last < 2) return false;
 
   var ids = sheet.getRange(2, idIndex + 1, last - 1, 1).getValues();
+  var rowIndex = 0;
   for (var i = 0; i < ids.length; i++) {
     if (String(ids[i][0]) === String(idValue)) {
-      var rowIndex = i + 2;
-      Object.keys(patch).forEach(function (key) {
-        var col = headers.indexOf(key);
-        if (col >= 0) sheet.getRange(rowIndex, col + 1).setValue(patch[key]);
-      });
-      return true;
+      rowIndex = i + 2;
+      break;
     }
   }
-  return false;
+  if (!rowIndex) return false;
+
+  var keys = Object.keys(patch);
+  if (!keys.length) return true;
+
+  // Satu baca + satu tulis untuk semua kolom (sebelumnya satu setValue per kolom).
+  var row = sheet.getRange(rowIndex, 1, 1, headers.length).getValues()[0];
+  var min = -1;
+  var max = -1;
+  keys.forEach(function (key) {
+    var col = headers.indexOf(key);
+    if (col < 0) return;
+    if (sameCellValue_(row[col], patch[key])) return;
+    row[col] = patch[key];
+    if (min < 0 || col < min) min = col;
+    if (col > max) max = col;
+  });
+  if (min < 0) return true; // tidak ada perubahan: jangan sentuh sheet
+
+  sheet.getRange(rowIndex, min + 1, 1, max - min + 1).setValues([row.slice(min, max + 1)]);
+  delete TABLE_CACHE_[name];
+  return true;
 }
 
 function withLock_(fn) {

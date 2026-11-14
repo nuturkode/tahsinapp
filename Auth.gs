@@ -29,7 +29,12 @@ function currentUser_() {
     };
     appendRow_('Users', found);
   } else {
-    updateRow_('Users', 'user_id', id, { last_seen: nowIso_() });
+    // last_seen cukup diperbarui tiap beberapa jam, tidak setiap request:
+    // setiap updateRow_ adalah tulis sheet yang memperlambat semua load/save.
+    var seen = Date.parse(String(found.last_seen || ''));
+    if (!seen || isNaN(seen) || Date.now() - seen > 6 * 3600 * 1000) {
+      updateRow_('Users', 'user_id', id, { last_seen: nowIso_() });
+    }
   }
 
   return { id: id, email: email, nama: found.nama, role: found.role, demo: !email };

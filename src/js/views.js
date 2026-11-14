@@ -17,6 +17,7 @@ import {
   toast,
   alertError,
   confirmAction,
+  ensureSwal,
   applyBootstrap,
   SURAHS,
   SUNNAH_TYPES,
@@ -98,8 +99,9 @@ export const DashboardView = {
       const prayer = PRAYERS.find((p) => p.key === key) || { label: key };
       const time = today.value.schedule ? today.value.schedule[key] : '';
       const current = marks.value[key] || '';
-      if (!window.Swal) return;
-      const res = await window.Swal.fire({
+      const Swal = await ensureSwal();
+      if (!Swal) return;
+      const res = await Swal.fire({
         title: `${prayer.label} · ${time}`,
         text: 'Bagaimana sholat ini dikerjakan?',
         input: 'radio',
@@ -274,7 +276,7 @@ export const SholatView = {
 
     let picker = null;
     onMounted(async () => {
-      picker = initFlatpickr(dateEl.value, {
+      picker = await initFlatpickr(dateEl.value, {
         defaultDate: date.value,
         maxDate: 'today',
         onChange: (selected) => {
@@ -356,7 +358,7 @@ export const SholatView = {
       try {
         await api('profile.save', { cityId: city.id, cityName: city.name });
         showCity.value = false;
-        applyBootstrap(await api('bootstrap'));
+        applyBootstrap(await api('bootstrap'), true);
         await loadMonth();
         toast(`Kota diubah ke ${city.name}`);
       } catch (err) {
@@ -458,8 +460,9 @@ export const QuranView = {
     }
 
     async function reviewHafalan(item) {
-      if (!window.Swal) return;
-      const res = await window.Swal.fire({
+      const Swal = await ensureSwal();
+      if (!Swal) return;
+      const res = await Swal.fire({
         title: `Murojaah ${item.surah}`,
         text: `Ayat ${item.ayahFrom}–${item.ayahTo}. Seberapa lancar?`,
         input: 'select',
@@ -758,7 +761,7 @@ export const LaporanView = {
       return fmtDateShort(iso);
     }
 
-    function draw() {
+    async function draw() {
       destroyCharts();
       const s = stats.value;
       if (!s || !s.heatmap) return;
@@ -767,7 +770,7 @@ export const LaporanView = {
 
       if (barEl.value) {
         charts.push(
-          renderChart(barEl.value, {
+          await renderChart(barEl.value, {
             ...base,
             chart: { ...base.chart, type: 'bar', height: 240 },
             series: [{ name: 'Sholat', data: (s.heatmap || []).map((d) => ({ x: shortLabel(d.date), y: d.score })) }],
@@ -787,7 +790,7 @@ export const LaporanView = {
       if (donutEl.value) {
         const c = s.composition || {};
         charts.push(
-          renderChart(donutEl.value, {
+          await renderChart(donutEl.value, {
             ...base,
             chart: { ...base.chart, type: 'donut', height: 220 },
             series: [c.jamaah || 0, c.tepat || 0, c.qadha || 0, c.kosong || 0],
@@ -802,7 +805,7 @@ export const LaporanView = {
 
       if (radialEl.value) {
         charts.push(
-          renderChart(radialEl.value, {
+          await renderChart(radialEl.value, {
             ...base,
             chart: { ...base.chart, type: 'radialBar', height: 220 },
             series: [Number(s.percent) || 0],
@@ -824,7 +827,7 @@ export const LaporanView = {
 
       if (areaEl.value) {
         charts.push(
-          renderChart(areaEl.value, {
+          await renderChart(areaEl.value, {
             ...base,
             chart: { ...base.chart, type: 'area', height: 220 },
             series: [{ name: 'Halaman', data: (s.quran || []).map((q) => ({ x: shortLabel(q.date), y: q.pages })) }],
@@ -844,7 +847,7 @@ export const LaporanView = {
       try {
         stats.value = await api('stats.summary', { days: days.value, end: endDate.value });
         await nextTick();
-        draw();
+        await draw();
       } catch (err) {
         alertError(err);
       }
@@ -856,7 +859,7 @@ export const LaporanView = {
     }
 
     onMounted(async () => {
-      picker = initFlatpickr(rangeEl.value, {
+      picker = await initFlatpickr(rangeEl.value, {
         defaultDate: endDate.value,
         maxDate: 'today',
         onChange: (selected) => {
@@ -865,7 +868,7 @@ export const LaporanView = {
           load();
         }
       });
-      monthPicker = initFlatpickr(monthEl.value, {
+      monthPicker = await initFlatpickr(monthEl.value, {
         defaultDate: new Date(cursor.year, cursor.month - 1, 1),
         maxDate: 'today',
         altFormat: 'F Y',
@@ -1001,7 +1004,7 @@ export const KalenderView = {
     }
 
     onMounted(async () => {
-      picker = initFlatpickr(monthEl.value, {
+      picker = await initFlatpickr(monthEl.value, {
         defaultDate: new Date(cursor.year, cursor.month - 1, 1),
         altFormat: 'F Y',
         onChange: async (selectedDates) => {
@@ -1048,7 +1051,7 @@ export const RamadhanView = {
 
     onMounted(async () => {
       timer = window.setInterval(() => (clock.value = new Date()), 1000);
-      picker = initFlatpickr(dateEl.value, {
+      picker = await initFlatpickr(dateEl.value, {
         defaultDate: date.value,
         maxDate: 'today',
         onChange: async (selected) => {
@@ -1423,9 +1426,9 @@ export const TargetView = {
       return iso ? fmtDateShort(iso) : '';
     }
 
-    onMounted(() => {
+    onMounted(async () => {
       load();
-      picker = initFlatpickr(dueEl.value, {
+      picker = await initFlatpickr(dueEl.value, {
         minDate: 'today',
         onChange: (selected) => {
           form.dueDate = selected.length ? isoOfDate(selected[0]) : '';
@@ -1511,7 +1514,7 @@ export const PengaturanView = {
         const out = await api('profile.save', { ...form });
         state.profile = out.profile;
         applyThemeSafe(out.profile.theme);
-        applyBootstrap(await api('bootstrap'));
+        applyBootstrap(await api('bootstrap'), true);
         toast('Pengaturan disimpan');
       } catch (err) {
         alertError(err);

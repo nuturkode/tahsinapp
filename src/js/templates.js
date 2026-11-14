@@ -16,16 +16,36 @@ export const tplRoot = /* html */ `
     <main class="mx-auto w-full max-w-3xl px-4 pt-4 sm:px-6">
       <p v-if="state.error" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ state.error }}</p>
 
-      <dashboard-view v-if="state.route === 'beranda'"></dashboard-view>
-      <sholat-view v-else-if="state.route === 'sholat'"></sholat-view>
-      <quran-view v-else-if="state.route === 'quran'"></quran-view>
-      <dzikir-view v-else-if="state.route === 'dzikir'"></dzikir-view>
-      <laporan-view v-else-if="state.route === 'laporan'"></laporan-view>
-      <kalender-view v-else-if="state.route === 'kalender'"></kalender-view>
-      <ramadhan-view v-else-if="state.route === 'ramadhan'"></ramadhan-view>
-      <keluarga-view v-else-if="state.route === 'keluarga'"></keluarga-view>
-      <target-view v-else-if="state.route === 'target'"></target-view>
-      <pengaturan-view v-else></pengaturan-view>
+      <div v-if="!state.ready" class="space-y-3" aria-busy="true" aria-live="polite" aria-label="Memuat data ibadah">
+        <div class="card animate-pulse p-5">
+          <div class="h-3 w-24 rounded bg-line/80 dark:bg-[#174438]"></div>
+          <div class="mt-3 h-7 w-40 rounded bg-line/80 dark:bg-[#174438]"></div>
+          <div class="mt-4 h-11 w-full rounded-xl bg-line/60 dark:bg-[#12312a]"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div v-for="n in 4" :key="n" class="card animate-pulse p-4">
+            <div class="h-3 w-12 rounded bg-line/80 dark:bg-[#174438]"></div>
+            <div class="mt-2 h-6 w-16 rounded bg-line/60 dark:bg-[#12312a]"></div>
+          </div>
+        </div>
+        <div class="card animate-pulse space-y-3 p-5">
+          <div v-for="n in 5" :key="n" class="h-4 rounded bg-line/60 dark:bg-[#12312a]"></div>
+        </div>
+        <p class="text-center text-xs text-muted">Menyiapkan jadwal dan catatan ibadah…</p>
+      </div>
+
+      <template v-else>
+        <dashboard-view v-if="state.route === 'beranda'"></dashboard-view>
+        <sholat-view v-else-if="state.route === 'sholat'"></sholat-view>
+        <quran-view v-else-if="state.route === 'quran'"></quran-view>
+        <dzikir-view v-else-if="state.route === 'dzikir'"></dzikir-view>
+        <laporan-view v-else-if="state.route === 'laporan'"></laporan-view>
+        <kalender-view v-else-if="state.route === 'kalender'"></kalender-view>
+        <ramadhan-view v-else-if="state.route === 'ramadhan'"></ramadhan-view>
+        <keluarga-view v-else-if="state.route === 'keluarga'"></keluarga-view>
+        <target-view v-else-if="state.route === 'target'"></target-view>
+        <pengaturan-view v-else></pengaturan-view>
+      </template>
 
       <footer class="mt-8 pb-2 text-center text-[11px] leading-relaxed text-muted">
         Jadwal bersifat perkiraan — sesuaikan koreksi menit dengan masjid setempat.<br />

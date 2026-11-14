@@ -28,9 +28,69 @@ export const state = reactive({
 
 export const busy = computed(() => state.loading > 0);
 
+const SNAPSHOT_KEY = 'ibadahku.snapshot.v1';
+const THEME_KEY = 'ibadahku.theme.v1';
+
+function readStore(key) {
+  try {
+    return JSON.parse(window.localStorage.getItem(key) || 'null');
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeStore(key, value) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    /* localStorage penuh/diblokir: tampilan tetap jalan tanpa cache */
+  }
+}
+
+/*
+ * Snapshot data ibadah memakai sessionStorage, bukan localStorage: cache hanya
+ * hidup selama tab ini terbuka. Dengan begitu nama/streak milik akun Google
+ * yang sebelumnya memakai browser yang sama tidak ikut tampil di tab baru.
+ */
+function readSession(key) {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(key) || 'null');
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeSession(key, value) {
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    /* kuota penuh/diblokir: cukup lewati cache */
+  }
+}
+
+/** Tema terakhir yang dipilih, dibaca sebelum render pertama agar tidak berkedip. */
+export function cachedTheme() {
+  const value = readStore(THEME_KEY);
+  return value === 'dark' || value === 'light' ? value : '';
+}
+
+/**
+ * Data bootstrap terakhir untuk melukis layar seketika pada kunjungan
+ * berikutnya. Hanya dipakai bila masih hari yang sama dan belum kedaluwarsa,
+ * lalu ditimpa begitu server menjawab.
+ */
+export function readSnapshot(maxAgeMs = 6 * 3600 * 1000) {
+  const saved = readSession(SNAPSHOT_KEY);
+  if (!saved || !saved.data || !saved.savedAt) return null;
+  if (Date.now() - saved.savedAt > maxAgeMs) return null;
+  if (!saved.data.today || saved.data.today.date !== todayISO()) return null;
+  return saved.data;
+}
+
 /** Terapkan respons bootstrap ke state global (dipakai saat boot & refresh). */
-export function applyBootstrap(data) {
+export function applyBootstrap(data, persist = false) {
   if (!data) return;
+  if (persist) writeSession(SNAPSHOT_KEY, { savedAt: Date.now(), data });
   state.profile = data.profile || state.profile;
   state.today = data.today || state.today;
   state.marks = data.marks || {};
@@ -240,20 +300,27 @@ export function hijriFor(iso, adj = 0) {
 }
 
 /* ------------------------------------------------------------- format */
+/* Formatter dibuat sekali: `new Intl.*` mahal dan dulu dipanggil per baris. */
+const NUM_ID = new Intl.NumberFormat('id-ID');
+const DATE_LONG_ID = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+const DATE_SHORT_ID = new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short' });
+const WEEKDAY_ID = new Intl.DateTimeFormat('id-ID', { weekday: 'long' });
+const CURRENCY_IDR = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+
 export function fmtNum(n) {
-  return new Intl.NumberFormat('id-ID').format(Number(n) || 0);
+  return NUM_ID.format(Number(n) || 0);
 }
 
 export function fmtDate(iso) {
-  return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(parseISO(iso));
+  return DATE_LONG_ID.format(parseISO(iso));
 }
 
 export function fmtDateShort(iso) {
-  return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short' }).format(parseISO(iso));
+  return DATE_SHORT_ID.format(parseISO(iso));
 }
 
 export function fmtWeekday(iso) {
-  return new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(parseISO(iso));
+  return WEEKDAY_ID.format(parseISO(iso));
 }
 
 export function pct(part, total) {
@@ -299,43 +366,122 @@ export function applyTheme(mode) {
   document.documentElement.classList.toggle('dark', dark);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', dark ? '#071c17' : '#0B3B33');
+  writeStore(THEME_KEY, dark ? 'dark' : 'light');
   return dark;
+}
+
+/* ------------------------------------------------- pemuat library (lazy) */
+/**
+ * Library besar (SweetAlert2, flatpickr, ApexCharts) tidak lagi dimuat saat
+ * halaman dibuka. Masing-masing diambil sekali, hanya ketika fiturnya dipakai,
+ * supaya load awal tidak menunggu ±1 MB JavaScript dari CDN.
+ */
+const LIB = {
+  swal: 'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+  flatpickr: 'https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.js',
+  flatpickrLocale: 'https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/id.js',
+  flatpickrCss: 'https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css',
+  apexcharts: 'https://cdn.jsdelivr.net/npm/apexcharts@3'
+};
+
+const libLoads = {};
+
+function loadScript(url) {
+  if (libLoads[url]) return libLoads[url];
+  libLoads[url] = new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = url;
+    el.async = true;
+    el.onload = () => resolve(true);
+    el.onerror = () => {
+      delete libLoads[url];
+      reject(new Error('Gagal memuat ' + url));
+    };
+    document.head.appendChild(el);
+  });
+  return libLoads[url];
+}
+
+function loadStyle(url) {
+  if (libLoads[url]) return libLoads[url];
+  libLoads[url] = new Promise((resolve, reject) => {
+    const el = document.createElement('link');
+    el.rel = 'stylesheet';
+    el.href = url;
+    el.onload = () => resolve(true);
+    el.onerror = () => {
+      delete libLoads[url];
+      reject(new Error('Gagal memuat ' + url));
+    };
+    document.head.appendChild(el);
+  });
+  return libLoads[url];
+}
+
+/** SweetAlert2 untuk dialog & toast; null bila CDN tak dapat dijangkau. */
+export function ensureSwal() {
+  if (window.Swal) return Promise.resolve(window.Swal);
+  return loadScript(LIB.swal)
+    .then(() => window.Swal || null)
+    .catch(() => null);
+}
+
+/** ApexCharts untuk grafik laporan. */
+export function ensureApex() {
+  if (window.ApexCharts) return Promise.resolve(window.ApexCharts);
+  return loadScript(LIB.apexcharts)
+    .then(() => window.ApexCharts || null)
+    .catch(() => null);
+}
+
+/** flatpickr + tema CSS + locale Indonesia. */
+export function ensureFlatpickr() {
+  if (window.flatpickr) return Promise.resolve(window.flatpickr);
+  return Promise.all([loadStyle(LIB.flatpickrCss), loadScript(LIB.flatpickr)])
+    .then(() => loadScript(LIB.flatpickrLocale))
+    .then(() => window.flatpickr || null)
+    .catch(() => null);
 }
 
 /* ------------------------------------------------------------- UI helper */
 export function toast(title, icon = 'success') {
-  if (!window.Swal) return;
-  window.Swal.fire({
+  ensureSwal().then((Swal) => {
+    if (!Swal) return;
+    Swal.fire({
     toast: true,
     position: 'top-end',
     icon,
     title,
     showConfirmButton: false,
-    timer: 1900,
-    timerProgressBar: true,
-    customClass: { popup: 'rounded-xl text-sm' }
+      timer: 1900,
+      timerProgressBar: true,
+      customClass: { popup: 'rounded-xl text-sm' }
+    });
   });
 }
 
 export function alertError(err) {
   const message = (err && (err.message || err.code)) || 'Terjadi kesalahan.';
-  if (!window.Swal) {
-    state.error = message;
-    return;
-  }
-  window.Swal.fire({
-    icon: 'error',
-    title: 'Ups, gagal',
-    text: message,
-    confirmButtonText: 'Tutup',
-    confirmButtonColor: '#0E7C66',
-    customClass: { popup: 'rounded-2xl' }
+  ensureSwal().then((Swal) => {
+    if (!Swal) {
+      state.error = message;
+      return;
+    }
+    Swal.fire({
+      icon: 'error',
+      title: 'Ups, gagal',
+      text: message,
+      confirmButtonText: 'Tutup',
+      confirmButtonColor: '#0E7C66',
+      customClass: { popup: 'rounded-2xl' }
+    });
   });
 }
 
 export async function confirmAction({ title, text, confirm = 'Ya, lanjutkan', danger = false }) {
-  if (!window.Swal) return window.confirm(`${title}\n${text || ''}`);
-  const res = await window.Swal.fire({
+  const Swal = await ensureSwal();
+  if (!Swal) return window.confirm(`${title}\n${text || ''}`);
+  const res = await Swal.fire({
     icon: danger ? 'warning' : 'question',
     title,
     text,
@@ -349,9 +495,11 @@ export async function confirmAction({ title, text, confirm = 'Ya, lanjutkan', da
   return res.isConfirmed;
 }
 
-export function initFlatpickr(el, opts = {}) {
-  if (!el || !window.flatpickr) return null;
-  return window.flatpickr(el, {
+export async function initFlatpickr(el, opts = {}) {
+  if (!el) return null;
+  const flatpickr = await ensureFlatpickr();
+  if (!flatpickr) return null;
+  return flatpickr(el, {
     locale: 'id',
     dateFormat: 'Y-m-d',
     altInput: true,
@@ -361,9 +509,11 @@ export function initFlatpickr(el, opts = {}) {
   });
 }
 
-export function renderChart(el, options) {
-  if (!el || !window.ApexCharts) return null;
-  const chart = new window.ApexCharts(el, options);
+export async function renderChart(el, options) {
+  if (!el) return null;
+  const ApexCharts = await ensureApex();
+  if (!ApexCharts) return null;
+  const chart = new ApexCharts(el, options);
   chart.render();
   return chart;
 }
@@ -533,11 +683,7 @@ export function countdownTo(hhmm, now = new Date()) {
 }
 
 export function fmtRupiah(value) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0
-  }).format(Number(value) || 0);
+  return CURRENCY_IDR.format(Number(value) || 0);
 }
 
 export function fastingForHijri(hijri, weekdayIndex) {

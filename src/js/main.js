@@ -1,4 +1,4 @@
-import { state, busy, api, applyBootstrap, applyTheme, initRouter } from './core.js';
+import { state, busy, api, applyBootstrap, applyTheme, initRouter, cachedTheme, readSnapshot } from './core.js';
 import { tplRoot } from './templates.js';
 import { TopBar, BottomNav, SideNav } from './components.js';
 import {
@@ -51,16 +51,27 @@ function mount() {
 
   initRouter();
 
+  // Tema diterapkan sebelum render pertama supaya tidak berkedip terang.
+  const theme = cachedTheme();
+  if (theme) applyTheme(theme);
+
+  // Salinan data terakhir (hari yang sama) dilukis seketika, lalu disegarkan
+  // dari server di belakang layar.
+  const cached = readSnapshot();
+  if (cached) applyBootstrap(cached);
+
+  // Render kerangka + skeleton lebih dulu; permintaan bootstrap berjalan
+  // paralel sehingga layar tidak kosong menunggu Apps Script.
+  mount();
+
   try {
     const data = await api('bootstrap');
-    applyBootstrap(data);
+    applyBootstrap(data, true);
     applyTheme((data.profile && data.profile.theme) || 'light');
   } catch (err) {
     state.error = (err && err.message) || 'Gagal memuat data awal. Coba muat ulang halaman.';
     applyTheme('light');
   }
-
-  mount();
 
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => document.documentElement.classList.add('fonts-ready'));
